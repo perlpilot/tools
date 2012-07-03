@@ -1,0 +1,25 @@
+#!/usr/bin/env perl
+
+use 5.012;
+use strict; use warnings;
+use Text::CSV;
+use Getopt::Std;
+
+my %opt;
+getopts('c:i:s:', \%opt);
+
+# -i NUMBER     - ignore NUMBER lines before processing
+# -c N[,N]*     - output specified columns
+# -s STRING     - separator between columnar output, default ","
+
+my $skip = $opt{i} || 0;
+my @columns = map { $_-1 } split /[\s,]+/, $opt{c} || "";
+my $sep = $opt{s} || ",";
+
+my $fh = *{ARGV};
+my $csv = Text::CSV->new ( { binary => 1 } );
+while ( my $row = $csv->getline( $fh ) ) {
+    if ($skip > 0) { $skip--; next; }
+    say join $sep, @columns > 0 ? @{$row}[@columns] : @$row;
+}
+$csv->eof or $csv->error_diag();
