@@ -1,0 +1,43 @@
+#!/usr/bin/env perl
+
+use 5.010;
+use strict; use warnings;
+use File::Find;
+use File::Temp qw/ tempfile /;
+
+my @DIRS = ( "/home/duff/Images/NASA" );        # where to look for images
+my $WALLCH_CONFIG = "/home/duff/.config/Wallch/MainWindow.conf";
+
+my @images;     # images we've found that will be added to wallch's config
+find(sub { 
+    return unless /\.(jpg|jpeg|gif|png)$/i;
+    push @images, $File::Find::name;
+}, @DIRS);
+
+@images = sort @images;
+
+my $list_widget = 0;
+my ($ofh, $outfile) = tempfile( UNLINK => 1 );
+say $outfile;
+open my $wfh, "<", $WALLCH_CONFIG or die;
+while (<$wfh>) {
+    if ($list_widget) {
+        next if /^\d+\\item=/;
+        if (/^size=\d+/) { 
+            $list_widget = 0;
+            next;
+        }
+    }
+    $list_widget = 1 if /^\[listwidgetitem\]/;
+    print $ofh $_;
+    if ($list_widget) {
+        for my $i (0..$#images) {
+            say $ofh $i + 1 . "\\item=$images[$i]";
+        }
+        say $ofh "size=" . scalar @images;
+    }
+}
+close($wfh);
+close($ofh);
+unlink($WALLCH_CONFIG) && link($outfile, $WALLCH_CONFIG) or link($outfile, "/tmp/wallch") and die;
+

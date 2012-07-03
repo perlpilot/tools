@@ -1,0 +1,20 @@
+#!/usr/bin/env perl
+
+use 5.012;
+use strict; use warnings;
+use Getopt::Std;
+
+my %opt;
+getopts("n:s:", \%opt);
+
+# -n NUMBER  - number of columns, defaults to 3
+# -s STRING  - delimiter between columns, default is "  "
+
+my $delim = $opt{s} || "  ";
+$opt{n} ||= 3;
+chomp(my @data = <>);
+
+my $inc = int(@data / $opt{n})+(@data%$opt{n} == 0 ? 0 : 1);
+for my $i (0..($inc-1)) {
+    say join $delim, grep { defined } @data[map { $i + ($_-1) * $inc } 1..$opt{n}];
+}

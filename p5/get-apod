@@ -1,0 +1,73 @@
+#!/usr/bin/env perl
+
+# Run with no args, gets today's Astronomy Picture of the Day (APOD)
+# Given a date, gets the APOD for that day.
+
+use 5.010;
+use strict; use warnings;
+use DateTime;
+use Mojo::UserAgent;
+use Mojo::IOLoop;
+use POSIX qw/ strftime /;
+use File::Basename;
+
+my $DEBUG = 0;
+
+my $ua = Mojo::UserAgent->new;
+
+my @dates;
+my $base_url = "http://apod.nasa.gov/apod/";
+if (@ARGV == 2) {
+    my ($start_date, $end_date) = map {
+        my ($year,$month,$day) = /^(\d\d\d\d)-(\d\d)-(\d\d)$/;
+        DateTime->new( day => $day, month => $month, year => $year )
+    } @ARGV;
+    my $cdate = $start_date;
+    while ($cdate <= $end_date) {
+        push @dates, $cdate->clone;
+        $cdate->add( days => 1 );
+    }
+} elsif (@ARGV == 1) {
+    my $date = shift;
+    my ($year,$month,$day) = $date =~ /^(\d\d\d\d)-(\d\d)-(\d\d)$/ or die "Invalid date: $date";
+    my $dt = DateTime->new( day => $day, month => $month, year => $year );
+    push @dates, $dt;
+}
+@dates = DateTime->today unless @dates;
+
+my ($crawl, @urls, %seen);
+$crawl = sub {
+    my $id = shift;
+    return Mojo::IOLoop->stop unless my $d = shift @dates;
+
+    my $apod = $base_url . $d->strftime("ap%y%m%d.html");
+    $ua->get($apod => sub {
+        my ($ua,$tx) = @_;
+        my $dom = $tx->res->dom;
+        unless ($dom =~ /404 Not Found/) {
+            $dom->find('a')->each( sub { 
+                my $e = shift; 
+                return unless my $img = $e->at("a > img:only-child");
+                for my $u ( $e->attrs('href'),  $img->attrs('src') ) {
+                    next if $seen{$u}++;
+                    my $fname = basename $u;
+                    my $src = $base_url . $u;
+                    my $dst_dir = $d->strftime("%Y-%m");
+                    mkdir($dst_dir) unless -d $dst_dir;
+                    my $dst =  "$dst_dir/$fname";
+                    next if -e $dst;
+                    say $src ." -> ".$dst if $DEBUG;
+                    $ua->get($src => sub {
+                        my ($ua,$tx) = @_;
+                        say "saving $dst";
+                        $tx->res->content->asset->move_to($dst);
+                    });
+                }
+            });
+        }
+        $crawl->($id);
+    });
+};
+
+$crawl->($_) for 1..5;
+Mojo::IOLoop->start unless Mojo::IOLoop->is_running;

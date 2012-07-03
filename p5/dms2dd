@@ -1,0 +1,7 @@
+#!/usr/bin/perl -l
+
+while (@ARGV) {
+   ($deg,$min,$sec) = splice(@ARGV,0,3);
+   push @dd, $deg + $min/60 + $sec/3600;
+}
+print join ",", map { sprintf("%.5f",$_) } @dd;

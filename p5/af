@@ -1,0 +1,9 @@
+#!/usr/bin/env perl
+
+use Text::Autoformat;
+
+autoformat({
+   all  => 1, 			    # format all of the input
+   case => "sentence  ",	# use two spaces at the end of sentences
+    @ARGV                   # pass command line arguments as parameters
+});
