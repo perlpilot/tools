@@ -1,0 +1,14 @@
+#!/usr/bin/perl
+
+use File::Tail;
+
+die "Usage is:  $0 <filename> <pattern>" unless @ARGV == 2;
+
+my $filename = shift;
+my $pattern = shift;
+$pattern = qr/$pattern/;
+my $tail=File::Tail->new( name => $filename, interval => 1 );
+while (defined($_ = $tail->read)) {
+    print if m/$pattern/;
+}
+
